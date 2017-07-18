@@ -8,6 +8,8 @@ import (
 
 	"errors"
 
+	"time"
+
 	bbhw "github.com/btittelbach/go-bbhw"
 	i2c "github.com/d2r2/go-i2c"
 )
@@ -133,12 +135,14 @@ func New(config string) *BBBMotorBridge {
 	//Setup GPIO / I2C
 	reset := bbhw.NewMMappedGPIO(gpioPin, bbhw.OUT)
 	reset.SetState(true)
+	time.Sleep(100 * time.Millisecond)
 
 	mb.i2c, err = i2c.NewI2C(i2cAddress, i2cLane)
 	if err != nil {
 		return nil
 	}
 
+	time.Sleep(100 * time.Millisecond)
 	return &mb
 }
 
