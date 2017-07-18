@@ -1,2 +1,2 @@
 # Oon
-Oon is a friendly robot in charge of killing the bad plants.
+Oon is a friendly robot in charge of killing the bad plants from my garden.
