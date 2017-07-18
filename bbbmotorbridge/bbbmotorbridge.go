@@ -1,16 +1,21 @@
 package bbbmotorbridge
 
+/*
+Basically a port of https://github.com/Seeed-Studio/MotorBridgeCapeforBBG_BBB/blob/master/BBG_MotorBridgeCape/MotorBridge.py
+*/
 import (
 	"fmt"
 
 	"errors"
 
+	bbhw "github.com/btittelbach/go-bbhw"
 	i2c "github.com/d2r2/go-i2c"
 )
 
 const (
 	i2cAddress = 0x4B
 	i2cLane    = 2
+	gpioPin    = 49 //Motor bridge PIN maps to P9_23 which is 49
 )
 
 type BBBMotorBridge struct {
@@ -27,7 +32,7 @@ func (mb *BBBMotorBridge) writeHalfWord(reg byte, value uint16) error {
 	_, err := mb.i2c.Write(byteSeq)
 
 	if err != nil {
-		fmt.Println("Write failed")
+		fmt.Printf("Write failed: %s\n", err.Error())
 		return err
 	}
 	return nil
@@ -42,7 +47,7 @@ func (mb *BBBMotorBridge) writeByte(reg byte, value byte) error {
 	_, err := mb.i2c.Write(byteSeq)
 
 	if err != nil {
-		fmt.Println("Write failed")
+		fmt.Printf("Write failed: %s\n", err.Error())
 		return err
 	}
 	return nil
@@ -124,10 +129,16 @@ func (mb *BBBMotorBridge) SetServo(servo int, angle uint16, speed uint16) error 
 func New(config string) *BBBMotorBridge {
 	var mb BBBMotorBridge
 	var err error
+
+	//Setup GPIO / I2C
+	reset := bbhw.NewMMappedGPIO(gpioPin, bbhw.OUT)
+	reset.SetState(true)
+
 	mb.i2c, err = i2c.NewI2C(i2cAddress, i2cLane)
 	if err != nil {
 		return nil
 	}
+
 	return &mb
 }
 
