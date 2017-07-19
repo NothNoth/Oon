@@ -5,30 +5,49 @@ import (
 	"testing"
 )
 
-func TestServos(t *testing.T) {
+func TestInit(t *testing.T) {
 	mb := bbmotorbridge.New("")
 	if mb == nil {
-		t.Fail()
+		t.Error("Init without config is accepted")
 	}
+	mb.Destroy()
+
+	mb = bbmotorbridge.New("foobar")
+	if mb != nil {
+		t.Error("Missing config file is not accepted")
+	}
+
+	mb = bbmotorbridge.New("example.conf")
+	if mb != nil {
+		t.Error("Valid config file is accepted")
+	}
+	mb.Destroy()
+
+}
+
+func TestServos(t *testing.T) {
+
+	mb := bbmotorbridge.New("")
 
 	err := mb.EnableServo(1, true)
 	if err != nil {
-		t.Fail()
+		t.Error("Servo 1 can be enabled")
 	}
 
 	err = mb.EnableServo(0, true)
 	if err == nil {
-		t.Fail()
+		t.Error("Servo 0 does not exist and cannot be enabled")
 	}
 
 	err = mb.EnableServo(7, true)
 	if err == nil {
-		t.Fail()
+		t.Error("Servo 7 does not exist and cannot be enabled")
 	}
 
 	err = mb.SetServo(1, 10, 10)
 	if err != nil {
-		t.Fail()
+		t.Error("Set position for valid servo is accepted")
 	}
+	mb.Destroy()
 
 }

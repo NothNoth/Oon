@@ -10,19 +10,56 @@ import (
 
 	"time"
 
+	"encoding/json"
+
+	"io/ioutil"
+
 	bbhw "github.com/btittelbach/go-bbhw"
 	i2c "github.com/d2r2/go-i2c"
 )
 
 const (
-	i2cAddress = 0x4B
-	i2cLane    = 2
-	gpioPin    = 49 //Motor bridge PIN maps to P9_23 which is 49
+	i2cAddress   = 0x4B
+	i2cLane      = 2
+	gpioPin      = 49 //Motor bridge PIN maps to P9_23 which is 49
+	defaultSpeed = 20
 )
+
+type ServoState struct {
+	Enabled bool
+	Angle   int
+}
+
+//InitialState holds the JSON configuration file
+type InitialState struct {
+	//Servos holds the state for the 6 servos
+	ServosStates []ServoState
+}
 
 //BBMotorBridge Motor bridge handler
 type BBMotorBridge struct {
 	i2c *i2c.I2C
+}
+
+func (mb *BBMotorBridge) loadInitialState(config string) error {
+	var initialState InitialState
+	data, err := ioutil.ReadFile(config)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	err = json.Unmarshal(data, &initialState)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	for i := 0; i < 6; i++ {
+		mb.EnableServo(i+1, initialState.ServosStates[i].Enabled)
+		mb.SetServo(i+1, uint16(initialState.ServosStates[i].Angle), defaultSpeed)
+		fmt.Printf("Servo #%d> Enabled %t - Position: %d\n", i+1, initialState.ServosStates[i].Enabled, initialState.ServosStates[i].Angle)
+	}
+	return nil
 }
 
 //New creates a new MotorBridge handler, returns nil on failure
@@ -39,8 +76,16 @@ func New(config string) *BBMotorBridge {
 	if err != nil {
 		return nil
 	}
-
 	time.Sleep(100 * time.Millisecond)
+
+	if len(config) != 0 {
+		err = mb.loadInitialState(config)
+		if err != nil {
+			mb.Destroy()
+			return nil
+		}
+	}
+
 	return &mb
 }
 
