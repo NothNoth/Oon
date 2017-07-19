@@ -1,7 +1,7 @@
 package bbmotorbridge
 
 /*
-Basically a port of https://github.com/Seeed-Studio/MotorBridgeCapeforBBG_BBB/blob/master/BBG_MotorBridgeCape/MotorBridge.py
+Basically a port of https://github.com/Seeed-Studio/MotorBridgeCapeforBBG_BB/blob/master/BBG_MotorBridgeCape/MotorBridge.py
 */
 import (
 	"fmt"
@@ -20,42 +20,37 @@ const (
 	gpioPin    = 49 //Motor bridge PIN maps to P9_23 which is 49
 )
 
-type BBBMotorBridge struct {
+//BBMotorBridge Motor bridge handler
+type BBMotorBridge struct {
 	i2c *i2c.I2C
 }
 
-func (mb *BBBMotorBridge) writeHalfWord(reg byte, value uint16) error {
-	var byteSeq []byte
+//New creates a new MotorBridge handler, returns nil on failure
+func New(config string) *BBMotorBridge {
+	var mb BBMotorBridge
+	var err error
 
-	byteSeq = append(byteSeq, WRITE_MODE)       // Read/Write ?
-	byteSeq = append(byteSeq, reg)              //Which register ?
-	byteSeq = append(byteSeq, byte(value&0xFF)) //16 bits value
-	byteSeq = append(byteSeq, byte((value>>8)&0xFF))
-	_, err := mb.i2c.Write(byteSeq)
+	//Setup GPIO / I2C
+	reset := bbhw.NewMMappedGPIO(gpioPin, bbhw.OUT)
+	reset.SetState(true)
+	time.Sleep(100 * time.Millisecond)
 
+	mb.i2c, err = i2c.NewI2C(i2cAddress, i2cLane)
 	if err != nil {
-		fmt.Printf("Write failed: %s\n", err.Error())
-		return err
+		return nil
 	}
-	return nil
+
+	time.Sleep(100 * time.Millisecond)
+	return &mb
 }
 
-func (mb *BBBMotorBridge) writeByte(reg byte, value byte) error {
-	var byteSeq []byte
-
-	byteSeq = append(byteSeq, WRITE_MODE) // Read/Write ?
-	byteSeq = append(byteSeq, reg)        //Which register ?
-	byteSeq = append(byteSeq, value)      //8 bits value
-	_, err := mb.i2c.Write(byteSeq)
-
-	if err != nil {
-		fmt.Printf("Write failed: %s\n", err.Error())
-		return err
-	}
-	return nil
+//Destroy cleanup resources
+func (mb *BBMotorBridge) Destroy() {
+	mb.i2c.Close()
 }
 
-func (mb *BBBMotorBridge) EnableServo(servo int, enable bool) error {
+//EnableServo switches the given servo on/off. Servo identifier must be within [1-6]
+func (mb *BBMotorBridge) EnableServo(servo int, enable bool) error {
 	_, _, enableReg, err := getRegisters(servo)
 	if err != nil {
 		return err
@@ -67,6 +62,25 @@ func (mb *BBBMotorBridge) EnableServo(servo int, enable bool) error {
 		err = mb.writeByte(enableReg, 0)
 	}
 	return err
+}
+
+//SetServo sets the given servo index at angle with given speed.
+func (mb *BBMotorBridge) SetServo(servo int, angle uint16, speed uint16) error {
+	speedReg, angleReg, _, err := getRegisters(servo)
+	if err != nil {
+		return err
+	}
+	//Set speed
+	err = mb.writeHalfWord(speedReg, speed)
+	if err != nil {
+		return err
+	}
+	//Set angle
+	err = mb.writeHalfWord(angleReg, angle)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func getRegisters(servo int) (freq byte, angle byte, enable byte, err error) {
@@ -110,42 +124,33 @@ func getRegisters(servo int) (freq byte, angle byte, enable byte, err error) {
 	return
 }
 
-func (mb *BBBMotorBridge) SetServo(servo int, angle uint16, speed uint16) error {
-	speedReg, angleReg, _, err := getRegisters(servo)
+func (mb *BBMotorBridge) writeHalfWord(reg byte, value uint16) error {
+	var byteSeq []byte
+
+	byteSeq = append(byteSeq, WRITE_MODE)       // Read/Write ?
+	byteSeq = append(byteSeq, reg)              //Which register ?
+	byteSeq = append(byteSeq, byte(value&0xFF)) //16 bits value
+	byteSeq = append(byteSeq, byte((value>>8)&0xFF))
+	_, err := mb.i2c.Write(byteSeq)
+
 	if err != nil {
-		return err
-	}
-	//Set speed
-	err = mb.writeHalfWord(speedReg, speed)
-	if err != nil {
-		return err
-	}
-	//Set angle
-	err = mb.writeHalfWord(angleReg, angle)
-	if err != nil {
+		fmt.Printf("Write failed: %s\n", err.Error())
 		return err
 	}
 	return nil
 }
 
-func New(config string) *BBBMotorBridge {
-	var mb BBBMotorBridge
-	var err error
+func (mb *BBMotorBridge) writeByte(reg byte, value byte) error {
+	var byteSeq []byte
 
-	//Setup GPIO / I2C
-	reset := bbhw.NewMMappedGPIO(gpioPin, bbhw.OUT)
-	reset.SetState(true)
-	time.Sleep(100 * time.Millisecond)
+	byteSeq = append(byteSeq, WRITE_MODE) // Read/Write ?
+	byteSeq = append(byteSeq, reg)        //Which register ?
+	byteSeq = append(byteSeq, value)      //8 bits value
+	_, err := mb.i2c.Write(byteSeq)
 
-	mb.i2c, err = i2c.NewI2C(i2cAddress, i2cLane)
 	if err != nil {
-		return nil
+		fmt.Printf("Write failed: %s\n", err.Error())
+		return err
 	}
-
-	time.Sleep(100 * time.Millisecond)
-	return &mb
-}
-
-func (mb *BBBMotorBridge) Destroy() {
-	mb.i2c.Close()
+	return nil
 }

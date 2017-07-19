@@ -29,7 +29,7 @@ It is essentially a rewrite of the official package written in Python.
 
 ## Is it fully functional?
 
-Implemented part are, yes. Nevertheless this package is still under development, DC motors will come soon.
+Implemented parts are, yes. Nevertheless this package is still under development, DC motors will come soon.
 
 ## Will it work on my BB?
 
@@ -37,4 +37,6 @@ This package was tested on BeagleBone Green but will probably work on Black edit
 
 ### It doesn't work on my BB-xxx, what should I try?
 
-Try editing the i2cAddress, i2cLane and gpioPin consts to appropriate values.
+Try editing the i2cAddress, i2cLane and gpioPin consts and set appropriate values.
+
+If you find something working with your BB model, please let me know!
