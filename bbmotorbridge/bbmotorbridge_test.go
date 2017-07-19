@@ -1,12 +1,12 @@
-package bbbmotorbridge_test
+package bbmotorbridge_test
 
 import (
-	"Oon/bbbmotorbridge"
+	"Oon/bbmotorbridge"
 	"testing"
 )
 
 func TestServos(t *testing.T) {
-	mb := bbbmotorbridge.New("")
+	mb := bbmotorbridge.New("")
 	if mb == nil {
 		t.Fail()
 	}

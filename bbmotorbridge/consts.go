@@ -1,4 +1,4 @@
-package bbbmotorbridge
+package bbmotorbridge
 
 const READ_MODE = 0
 const WRITE_MODE = 1

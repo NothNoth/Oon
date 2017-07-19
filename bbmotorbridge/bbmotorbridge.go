@@ -1,4 +1,4 @@
-package bbbmotorbridge
+package bbmotorbridge
 
 /*
 Basically a port of https://github.com/Seeed-Studio/MotorBridgeCapeforBBG_BBB/blob/master/BBG_MotorBridgeCape/MotorBridge.py
