@@ -1,4 +1,4 @@
-# BBMotorBridg
+# BBMotorBridge
 
 BBMotorBridge is a Motor Bridge driver written in Go for the BeagleBone Motor Bridge Cape.
 
@@ -25,16 +25,16 @@ It is essentially a rewrite of the official package written in Python.
       }
     }
 
-    # FAQ
+# FAQ
 
-    ## Is it fully functional?
+## Is it fully functional?
 
-    Implemented part are, yes. Nevertheless this package is still under development, DC motors will come soon.
+Implemented part are, yes. Nevertheless this package is still under development, DC motors will come soon.
 
-    ## Will it work on my BB?
+## Will it work on my BB?
 
-    This package was tested on BeagleBone Green but will probably work on Black edition too.
+This package was tested on BeagleBone Green but will probably work on Black edition too.
 
-    ### It doesn't work on my BB-xxx, what should I try?
+### It doesn't work on my BB-xxx, what should I try?
 
-    Try editing the i2cAddress, i2cLane and gpioPin consts to appropriate values.
+Try editing the i2cAddress, i2cLane and gpioPin consts to appropriate values.
