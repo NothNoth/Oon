@@ -24,6 +24,7 @@ const (
 	gpioPin            = 49 //Motor bridge PIN maps to P9_23 which is 49
 	defaultServoSpeed  = 20
 	defaultDCFrequency = 1000
+	defaultCmdWait     = 100 * time.Millisecond
 )
 
 type ServoState struct {
@@ -77,7 +78,7 @@ func New(config string) *BBMotorBridge {
 	if err != nil {
 		return nil
 	}
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(defaultCmdWait)
 
 	if len(config) != 0 {
 		err = mb.loadInitialState(config)
@@ -97,7 +98,7 @@ func (mb *BBMotorBridge) Destroy() {
 
 //EnableServo switches the given servo on/off. Servo identifier must be within [1-6]
 func (mb *BBMotorBridge) EnableServo(servo int, enable bool) error {
-	_, _, enableReg, err := getRegisters(servo)
+	_, _, enableReg, err := getServoRegisters(servo)
 	if err != nil {
 		return err
 	}
@@ -112,7 +113,7 @@ func (mb *BBMotorBridge) EnableServo(servo int, enable bool) error {
 
 //SetServo sets the given servo index at angle with given speed.
 func (mb *BBMotorBridge) SetServo(servo int, angle uint16, speed uint16) error {
-	speedReg, angleReg, _, err := getRegisters(servo)
+	speedReg, angleReg, _, err := getServoRegisters(servo)
 	if err != nil {
 		return err
 	}
@@ -129,7 +130,7 @@ func (mb *BBMotorBridge) SetServo(servo int, angle uint16, speed uint16) error {
 	return nil
 }
 
-func getRegisters(servo int) (freq byte, angle byte, enable byte, err error) {
+func getServoRegisters(servo int) (freq byte, angle byte, enable byte, err error) {
 	switch servo {
 	case 1:
 		freq = SVM1_FREQ
@@ -219,77 +220,73 @@ func (mb *BBMotorBridge) writeByte(reg byte, value byte) error {
 	return nil
 }
 
-func (mb *BBMotorBridge) EnableDC(dc int) {
-	mb.writeWord(CONFIG_TB_PWM_FREQ, defaultDCFrequency)
-
+func getDCRegisters(dc int) (mode byte, direction byte, duty byte, err error) {
+	switch dc {
+	case 1:
+		mode = TB_1A_MODE
+		direction = TB_1A_DIR
+		duty = TB_1A_DUTY
+		break
+	case 2:
+		mode = TB_1B_MODE
+		direction = TB_1B_DIR
+		duty = TB_1B_DUTY
+		break
+	case 3:
+		mode = TB_2A_MODE
+		direction = TB_2A_DIR
+		duty = TB_2A_DUTY
+		break
+	case 4:
+		mode = TB_2B_MODE
+		direction = TB_2B_DIR
+		duty = TB_2B_DUTY
+		break
+	default:
+		mode = 0
+		direction = 0
+		duty = 0
+		err = errors.New("Invalid dc id (1-2)")
+	}
+	return
 }
 
-/*
-# Init DC Motor
-    def DCMotorInit(self,MotorName,Frequency):
-    # Init the DC Frequency
-        WriteOneWord(CONFIG_TB_PWM_FREQ,Frequency)
-        time.sleep(DelayTime)
+func (mb *BBMotorBridge) EnableDC(dc int) error {
+	modeReg, directionReg, _, err := getDCRegisters(dc)
+	if err != nil {
+		return err
+	}
 
-    # Set the port as DC Motor
-        if MotorName == 1 or MotorName == 2:
-            WriteByte(TB_1A_MODE,TB_DCM)
-            time.sleep(DelayTime)
-            WriteByte(TB_1A_DIR,TB_STOP)
-            time.sleep(DelayTime)
-            WriteByte(TB_1B_MODE,TB_DCM)
-            time.sleep(DelayTime)
-            WriteByte(TB_1B_DIR,TB_STOP)
-            time.sleep(DelayTime)
-        if MotorName == 3 or MotorName == 4:
-            WriteByte(TB_2A_MODE,TB_DCM)
-            time.sleep(DelayTime)
-            WriteByte(TB_2A_DIR,TB_STOP)
-            time.sleep(DelayTime)
-            WriteByte(TB_2B_MODE,TB_DCM)
-            time.sleep(DelayTime)
-            WriteByte(TB_2B_DIR,TB_STOP)
-            time.sleep(DelayTime)
+	mb.writeWord(CONFIG_TB_PWM_FREQ, defaultDCFrequency)
+	time.Sleep(defaultCmdWait)
+	mb.writeByte(modeReg, TB_DCM)
+	time.Sleep(defaultCmdWait)
+	mb.writeByte(directionReg, TB_STOP)
+	time.Sleep(defaultCmdWait)
 
-    # Drive the DC Motor
-    # Direction 1 CW | 2 CCW
-    # PWNDuty  0 ~ 100
-    def DCMotorMove(self, MotorName,Direction,PWMDuty):
-        if MotorName == 1:
-            WriteByte(TB_1B_DIR,Direction)
-            time.sleep(DelayTime)
-            WriteOneWord(TB_1B_DUTY,PWMDuty*10)
-            time.sleep(DelayTime)
+	return nil
+}
 
-        if MotorName == 2:
-            WriteByte(TB_1A_DIR,Direction)
-            time.sleep(DelayTime)
-            WriteOneWord(TB_1A_DUTY,PWMDuty*10)
-            time.sleep(DelayTime)
+func (mb *BBMotorBridge) MoveDC(dc int, direction byte, duty uint32) error {
+	_, directionReg, dutyReg, err := getDCRegisters(dc)
+	if err != nil {
+		return err
+	}
 
-        if MotorName == 3:
-            WriteByte(TB_2B_DIR,Direction)
-            time.sleep(DelayTime)
-            WriteOneWord(TB_2B_DUTY,PWMDuty*10)
-            time.sleep(DelayTime)
+	mb.writeByte(directionReg, direction)
+	time.Sleep(defaultCmdWait)
+	mb.writeWord(dutyReg, duty*10)
+	time.Sleep(defaultCmdWait)
+	return nil
+}
 
-        if MotorName == 4:
-            WriteByte(TB_2A_DIR,Direction)
-            time.sleep(DelayTime)
-            WriteOneWord(TB_2A_DUTY,PWMDuty*10)
-            time.sleep(DelayTime)
+func (mb *BBMotorBridge) StopDC(dc int) error {
+	_, directionReg, _, err := getDCRegisters(dc)
+	if err != nil {
+		return err
+	}
 
-    # Stop the DC motor
-    def DCMotorStop(self, MotorName):
-        if MotorName == 1:
-            WriteByte(TB_1B_DIR,TB_STOP)
-        if MotorName == 2:
-            WriteByte(TB_1A_DIR,TB_STOP)
-        if MotorName == 3:
-            WriteByte(TB_2B_DIR,TB_STOP)
-        if MotorName == 4:
-            WriteByte(TB_2A_DIR,TB_STOP)
-        time.sleep(DelayTime)
-
-
-*/
+	mb.writeByte(directionReg, TB_STOP)
+	time.Sleep(defaultCmdWait)
+	return nil
+}
