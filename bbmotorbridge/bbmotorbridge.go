@@ -19,10 +19,11 @@ import (
 )
 
 const (
-	i2cAddress   = 0x4B
-	i2cLane      = 2
-	gpioPin      = 49 //Motor bridge PIN maps to P9_23 which is 49
-	defaultSpeed = 20
+	i2cAddress         = 0x4B
+	i2cLane            = 2
+	gpioPin            = 49 //Motor bridge PIN maps to P9_23 which is 49
+	defaultServoSpeed  = 20
+	defaultDCFrequency = 1000
 )
 
 type ServoState struct {
@@ -56,7 +57,7 @@ func (mb *BBMotorBridge) loadInitialState(config string) error {
 
 	for i := 0; i < 6; i++ {
 		mb.EnableServo(i+1, initialState.ServosStates[i].Enabled)
-		mb.SetServo(i+1, uint16(initialState.ServosStates[i].Angle), defaultSpeed)
+		mb.SetServo(i+1, uint16(initialState.ServosStates[i].Angle), defaultServoSpeed)
 		fmt.Printf("Servo #%d> Enabled %t - Position: %d\n", i+1, initialState.ServosStates[i].Enabled, initialState.ServosStates[i].Angle)
 	}
 	return nil
@@ -169,6 +170,24 @@ func getRegisters(servo int) (freq byte, angle byte, enable byte, err error) {
 	return
 }
 
+func (mb *BBMotorBridge) writeWord(reg byte, value uint32) error {
+	var byteSeq []byte
+
+	byteSeq = append(byteSeq, WRITE_MODE)       // Read/Write ?
+	byteSeq = append(byteSeq, reg)              //Which register ?
+	byteSeq = append(byteSeq, byte(value&0xFF)) //32 bits value
+	byteSeq = append(byteSeq, byte((value>>8)&0xFF))
+	byteSeq = append(byteSeq, byte((value>>16)&0xFF))
+	byteSeq = append(byteSeq, byte((value>>24)&0xFF))
+	_, err := mb.i2c.Write(byteSeq)
+
+	if err != nil {
+		fmt.Printf("Write failed: %s\n", err.Error())
+		return err
+	}
+	return nil
+}
+
 func (mb *BBMotorBridge) writeHalfWord(reg byte, value uint16) error {
 	var byteSeq []byte
 
@@ -199,3 +218,78 @@ func (mb *BBMotorBridge) writeByte(reg byte, value byte) error {
 	}
 	return nil
 }
+
+func (mb *BBMotorBridge) EnableDC(dc int) {
+	mb.writeWord(CONFIG_TB_PWM_FREQ, defaultDCFrequency)
+
+}
+
+/*
+# Init DC Motor
+    def DCMotorInit(self,MotorName,Frequency):
+    # Init the DC Frequency
+        WriteOneWord(CONFIG_TB_PWM_FREQ,Frequency)
+        time.sleep(DelayTime)
+
+    # Set the port as DC Motor
+        if MotorName == 1 or MotorName == 2:
+            WriteByte(TB_1A_MODE,TB_DCM)
+            time.sleep(DelayTime)
+            WriteByte(TB_1A_DIR,TB_STOP)
+            time.sleep(DelayTime)
+            WriteByte(TB_1B_MODE,TB_DCM)
+            time.sleep(DelayTime)
+            WriteByte(TB_1B_DIR,TB_STOP)
+            time.sleep(DelayTime)
+        if MotorName == 3 or MotorName == 4:
+            WriteByte(TB_2A_MODE,TB_DCM)
+            time.sleep(DelayTime)
+            WriteByte(TB_2A_DIR,TB_STOP)
+            time.sleep(DelayTime)
+            WriteByte(TB_2B_MODE,TB_DCM)
+            time.sleep(DelayTime)
+            WriteByte(TB_2B_DIR,TB_STOP)
+            time.sleep(DelayTime)
+
+    # Drive the DC Motor
+    # Direction 1 CW | 2 CCW
+    # PWNDuty  0 ~ 100
+    def DCMotorMove(self, MotorName,Direction,PWMDuty):
+        if MotorName == 1:
+            WriteByte(TB_1B_DIR,Direction)
+            time.sleep(DelayTime)
+            WriteOneWord(TB_1B_DUTY,PWMDuty*10)
+            time.sleep(DelayTime)
+
+        if MotorName == 2:
+            WriteByte(TB_1A_DIR,Direction)
+            time.sleep(DelayTime)
+            WriteOneWord(TB_1A_DUTY,PWMDuty*10)
+            time.sleep(DelayTime)
+
+        if MotorName == 3:
+            WriteByte(TB_2B_DIR,Direction)
+            time.sleep(DelayTime)
+            WriteOneWord(TB_2B_DUTY,PWMDuty*10)
+            time.sleep(DelayTime)
+
+        if MotorName == 4:
+            WriteByte(TB_2A_DIR,Direction)
+            time.sleep(DelayTime)
+            WriteOneWord(TB_2A_DUTY,PWMDuty*10)
+            time.sleep(DelayTime)
+
+    # Stop the DC motor
+    def DCMotorStop(self, MotorName):
+        if MotorName == 1:
+            WriteByte(TB_1B_DIR,TB_STOP)
+        if MotorName == 2:
+            WriteByte(TB_1A_DIR,TB_STOP)
+        if MotorName == 3:
+            WriteByte(TB_2B_DIR,TB_STOP)
+        if MotorName == 4:
+            WriteByte(TB_2A_DIR,TB_STOP)
+        time.sleep(DelayTime)
+
+
+*/
