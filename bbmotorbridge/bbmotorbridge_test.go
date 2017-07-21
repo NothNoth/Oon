@@ -51,3 +51,23 @@ func TestServos(t *testing.T) {
 	mb.Destroy()
 
 }
+
+func TestDC(t *testing.T) {
+	mb := bbmotorbridge.New("")
+	err := mb.EnableDC(12, true)
+	if err != nil {
+		t.Error("Invalid DC motor is rejected")
+	}
+
+	err = mb.EnableDC(1, true)
+	if err != nil {
+		t.Error("Valid DC motor can be enabled")
+	}
+
+	err = mb.MoveDC(1, 1, 50)
+	if err != nil {
+		t.Error("Valid motor can move")
+	}
+
+	mb.Destroy()
+}

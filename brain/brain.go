@@ -1,5 +1,10 @@
 package brain
 
+import (
+	"Oon/bbmotorbridge"
+	"fmt"
+)
+
 const (
 	stateIdle = iota
 	stateSeek
@@ -10,15 +15,23 @@ const (
 
 type BrainHandler struct {
 	currentState int
+	mb           *bbmotorbridge.BBMotorBridge
 }
 
 func New(configFile string) *BrainHandler {
 	var b BrainHandler
 	b.currentState = stateIdle
+	b.mb = bbmotorbridge.New(configFile)
+
+	if b.mb == nil {
+		fmt.Println("Failed to init motor bridge")
+		return nil
+	}
 	return &b
 }
 
 func (b *BrainHandler) Destroy() {
+	b.mb.Destroy()
 }
 
 func (b *BrainHandler) Start() {
