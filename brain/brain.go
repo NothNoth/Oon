@@ -2,6 +2,7 @@ package brain
 
 import (
 	"Oon/bbmotorbridge"
+	"Oon/controls"
 	"fmt"
 )
 
@@ -13,9 +14,14 @@ const (
 	stateKill
 )
 
+const (
+	dcMotorDefaultDuty = 1000
+)
+
 type BrainHandler struct {
 	currentState int
 	mb           *bbmotorbridge.BBMotorBridge
+	ctrl         *controls.Controls
 }
 
 func New(configFile string) *BrainHandler {
@@ -27,20 +33,38 @@ func New(configFile string) *BrainHandler {
 		fmt.Println("Failed to init motor bridge")
 		return nil
 	}
+
+	b.ctrl = controls.New()
+	if b.ctrl == nil {
+		b.mb.Destroy()
+		fmt.Println("Failed to init controls")
+		return nil
+	}
+
 	return &b
 }
 
 func (b *BrainHandler) Destroy() {
 	b.mb.Destroy()
+	b.ctrl.Destroy()
 }
 
 func (b *BrainHandler) Start() {
 	for {
 		switch b.currentState {
 		case stateIdle:
-			//Check button press and goto seek
+			press, _ := b.ctrl.GetPressed()
+			if press == true {
+				fmt.Println("Button pressed")
+				b.stateSwitch(stateSeek)
+			}
 			break
 		case stateSeek:
+			press, _ := b.ctrl.GetPressed()
+			if press == true {
+				fmt.Println("Button pressed")
+				b.stateSwitch(stateIdle)
+			}
 			//Check button press and goto Idle
 			//Check frame
 			// - grass: continue
@@ -68,6 +92,23 @@ func (b *BrainHandler) Start() {
 	}
 }
 
+func stateToStr(state int) string {
+	switch state {
+	case stateAttack:
+		return "Attack"
+	case stateIdle:
+		return "Idle"
+	case stateKill:
+		return "Kill"
+	case stateRotate:
+		return "Rotate"
+	case stateSeek:
+		return "Seek"
+	default:
+		return "???"
+	}
+}
+
 func (b *BrainHandler) stateSwitch(newState int) {
 	b.endState(b.currentState)
 	b.currentState = newState
@@ -81,9 +122,13 @@ func (b *BrainHandler) endState(state int) {
 		break
 	case stateSeek:
 		//stop DC motors
+		b.mb.MoveDC(1, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
+		b.mb.MoveDC(2, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
 		break
 	case stateRotate:
 		//stop DC motors
+		b.mb.MoveDC(1, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
+		b.mb.MoveDC(2, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
 		break
 	case stateAttack:
 		//nothing
@@ -95,17 +140,24 @@ func (b *BrainHandler) endState(state int) {
 }
 
 func (b *BrainHandler) startState(state int) {
+	fmt.Println("Entering state" + stateToStr(state))
 	switch state {
 	case stateIdle:
 		//stop motors, put arm back to initial position, beep
+		b.mb.MoveDC(1, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
+		b.mb.MoveDC(2, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
 		break
 	case stateSeek:
 		//beep^2, start DC motors
+		b.mb.MoveDC(1, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
+		b.mb.MoveDC(2, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
 		break
 	case stateRotate:
 		//select random angle
 		//compute duration from angle
 		//start DC motors FW/BW
+		b.mb.MoveDC(1, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
+		b.mb.MoveDC(2, bbmotorbridge.TB_CCW, dcMotorDefaultDuty)
 		break
 	case stateAttack:
 		// beep^3
