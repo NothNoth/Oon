@@ -70,8 +70,10 @@ func (b *BrainHandler) Start() {
 	var err error
 	b.rotationSpeed, err = b.calibrateRotation()
 	if err != nil {
-		fmt.Printf("Rotation calibration failed: %s\n", err.Error())
+		fmt.Printf("Rotation calibration failed: %s, using default\n", err.Error())
 		b.rotationSpeed = defaultRotationSpeed
+	} else {
+		fmt.Printf("Rotation calibration succeeded: %s\n", err.Error())
 	}
 
 	for {

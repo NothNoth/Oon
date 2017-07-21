@@ -1,16 +1,38 @@
 package brain
 
-import "Oon/bbmotorbridge"
-import "time"
-import "image"
-import "errors"
+import (
+	"Oon/bbmotorbridge"
+	"errors"
+	"fmt"
+	"image"
+	"math"
+	"time"
+)
 
 const (
 	rotateCalibrationMaxDelay = 10 * time.Second
 )
 
 func diffFrame(root *image.Image, current *image.Image) float64 {
-	return 0.0
+
+	currentS := (*current).Bounds().Size()
+	rootS := (*root).Bounds().Size()
+
+	if rootS.Eq(currentS) == false {
+		fmt.Println("Comparing images of different sizes")
+		return 0.0
+	}
+
+	var totalDiff float64
+	for x := 0; x < rootS.X; x++ {
+		for y := 0; y < rootS.Y; y++ {
+			rootR, rootG, rootB, _ := (*root).At(x, y).RGBA()
+			curR, curG, curB, _ := (*current).At(x, y).RGBA()
+			totalDiff += math.Abs(float64(rootR-curR)) + math.Abs(float64(rootG-curG)) + math.Abs(float64(rootB-curB))
+		}
+	}
+	max := float64(rootS.X) * float64(rootS.Y) * 3.0 * 0xFFFF
+	return (max - totalDiff) / max
 }
 
 func (b *BrainHandler) calibrateRotationWithLevel(calibrationLevel float64) (time.Duration, error) {
