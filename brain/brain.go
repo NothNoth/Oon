@@ -4,6 +4,7 @@ import (
 	"Oon/bbmotorbridge"
 	"Oon/controls"
 	"fmt"
+	"time"
 )
 
 const (
@@ -49,24 +50,33 @@ func (b *BrainHandler) Destroy() {
 	b.ctrl.Destroy()
 }
 
+func (b *BrainHandler) delayedStateSwitch(newState int, wait time.Duration) {
+	time.Sleep(wait)
+	b.stateSwitch(newState)
+}
+
 func (b *BrainHandler) Start() {
 	for {
 		switch b.currentState {
 		case stateIdle:
+			//On button press, seek
 			press, _ := b.ctrl.GetPressed()
 			if press == true {
 				fmt.Println("Button pressed")
 				b.stateSwitch(stateSeek)
+				time.Sleep(1 * time.Second) //leave enough time to release button
 			}
 			break
 		case stateSeek:
+			//On button press, idle
 			press, _ := b.ctrl.GetPressed()
 			if press == true {
 				fmt.Println("Button pressed")
 				b.stateSwitch(stateIdle)
+				time.Sleep(1 * time.Second) //leave enough time to release button
 			}
-			//Check button press and goto Idle
-			//Check frame
+
+			//TODO: check frame
 			// - grass: continue
 			// - weed: goto attack
 			// - other: goto rotate
@@ -153,11 +163,12 @@ func (b *BrainHandler) startState(state int) {
 		b.mb.MoveDC(2, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
 		break
 	case stateRotate:
-		//select random angle
-		//compute duration from angle
-		//start DC motors FW/BW
 		b.mb.MoveDC(1, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
 		b.mb.MoveDC(2, bbmotorbridge.TB_CCW, dcMotorDefaultDuty)
+
+		//TODO : calibrate  duration for 360 rotation
+		//generate random rotation duration
+		go b.delayedStateSwitch(stateSeek, 1*time.Second)
 		break
 	case stateAttack:
 		// beep^3
