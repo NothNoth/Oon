@@ -2,8 +2,10 @@ package brain
 
 import (
 	"Oon/bbmotorbridge"
+	"Oon/camera"
 	"Oon/controls"
 	"fmt"
+	"math/rand"
 	"time"
 )
 
@@ -16,20 +18,23 @@ const (
 )
 
 const (
-	dcMotorDefaultDuty = 1000
+	dcMotorDefaultDuty   = 1000
+	defaultRotationSpeed = 5 * time.Second
 )
 
 type BrainHandler struct {
-	currentState int
-	mb           *bbmotorbridge.BBMotorBridge
-	ctrl         *controls.Controls
+	currentState  int
+	mb            *bbmotorbridge.BBMotorBridge
+	ctrl          *controls.Controls
+	cam           *camera.Camera
+	rotationSpeed time.Duration
 }
 
-func New(configFile string) *BrainHandler {
+func New(motorBridgeConfig string, cameraConfig string) *BrainHandler {
 	var b BrainHandler
 	b.currentState = stateIdle
-	b.mb = bbmotorbridge.New(configFile)
 
+	b.mb = bbmotorbridge.New(motorBridgeConfig)
 	if b.mb == nil {
 		fmt.Println("Failed to init motor bridge")
 		return nil
@@ -39,6 +44,12 @@ func New(configFile string) *BrainHandler {
 	if b.ctrl == nil {
 		b.mb.Destroy()
 		fmt.Println("Failed to init controls")
+		return nil
+	}
+
+	b.cam = camera.New(cameraConfig)
+	if b.cam == nil {
+		fmt.Println("Failed to init camera")
 		return nil
 	}
 
@@ -56,6 +67,13 @@ func (b *BrainHandler) delayedStateSwitch(newState int, wait time.Duration) {
 }
 
 func (b *BrainHandler) Start() {
+	var err error
+	b.rotationSpeed, err = b.calibrateRotation()
+	if err != nil {
+		fmt.Printf("Rotation calibration failed: %s\n", err.Error())
+		b.rotationSpeed = defaultRotationSpeed
+	}
+
 	for {
 		switch b.currentState {
 		case stateIdle:
@@ -166,9 +184,12 @@ func (b *BrainHandler) startState(state int) {
 		b.mb.MoveDC(1, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
 		b.mb.MoveDC(2, bbmotorbridge.TB_CCW, dcMotorDefaultDuty)
 
-		//TODO : calibrate  duration for 360 rotation
 		//generate random rotation duration
-		go b.delayedStateSwitch(stateSeek, 1*time.Second)
+		r := rand.Uint32() % 8
+		duration := b.rotationSpeed / 2
+		duration = duration + duration/time.Duration(r)
+		fmt.Printf("Will rotate for %s", duration.String())
+		go b.delayedStateSwitch(stateSeek, duration)
 		break
 	case stateAttack:
 		// beep^3
