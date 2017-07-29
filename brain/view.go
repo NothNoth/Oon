@@ -13,26 +13,32 @@ const (
 	rotateCalibrationMaxDelay = 10 * time.Second
 )
 
+//diffFrame returns 1.0 is same, 0.0 if different
 func diffFrame(root *image.Image, current *image.Image) float64 {
 
 	currentS := (*current).Bounds().Size()
 	rootS := (*root).Bounds().Size()
 
 	if rootS.Eq(currentS) == false {
-		fmt.Println("Comparing images of different sizes")
-		return 0.0
+		panic("Comparing images of different sizes")
+		return 1.0
 	}
 
-	var totalDiff float64
+	totalDiff := 0
 	for x := 0; x < rootS.X; x++ {
 		for y := 0; y < rootS.Y; y++ {
 			rootR, rootG, rootB, _ := (*root).At(x, y).RGBA()
 			curR, curG, curB, _ := (*current).At(x, y).RGBA()
-			totalDiff += math.Abs(float64(rootR-curR)) + math.Abs(float64(rootG-curG)) + math.Abs(float64(rootB-curB))
+
+			if math.Abs(float64(rootR-curR)) > 1000 ||
+				math.Abs(float64(rootG-curG)) > 1000 ||
+				math.Abs(float64(rootB-curB)) > 1000 {
+				totalDiff++
+			}
 		}
 	}
-	max := float64(rootS.X) * float64(rootS.Y) * 3.0 * 0xFFFF
-	return (max - totalDiff) / max
+	max := rootS.X * rootS.Y
+	return 1.0 - (float64(totalDiff) / float64(max))
 }
 
 func (b *BrainHandler) calibrateRotationWithLevel(calibrationLevel float64) (time.Duration, error) {
@@ -46,6 +52,12 @@ func (b *BrainHandler) calibrateRotationWithLevel(calibrationLevel float64) (tim
 	if rootFrame == nil {
 		return 0.0, errors.New("Calibration timeout (failed to retrieve root frame)")
 	}
+
+	diff := diffFrame(rootFrame, rootFrame) //DEBUG
+	if diff < 0.99999 {
+		panic("Diff between same img is not 1.0")
+	}
+
 	tsStart := time.Now()
 	b.mb.MoveDC(1, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
 	b.mb.MoveDC(2, bbmotorbridge.TB_CCW, dcMotorDefaultDuty)
@@ -79,6 +91,7 @@ func (b *BrainHandler) calibrateRotation() (time.Duration, error) {
 	for {
 		t, err := b.calibrateRotationWithLevel(calibrationLevel)
 		if err == nil {
+			fmt.Println("Calibration succeeded ")
 			return t, nil
 		}
 		calibrationLevel -= 0.1

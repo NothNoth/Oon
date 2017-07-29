@@ -13,6 +13,8 @@ import (
 
 	"time"
 
+	"sync"
+
 	"github.com/blackjack/webcam"
 )
 
@@ -26,6 +28,10 @@ type CameraConfig struct {
 type Camera struct {
 	camH          *webcam.Webcam
 	frameEncoding string
+	stopGrabber   bool
+	lastImg       *image.Image
+	lastImgTs     time.Time
+	lastLock      sync.Mutex
 }
 
 func New(config string) *Camera {
@@ -93,6 +99,42 @@ func Detect() {
 	fmt.Printf("\n%d devices found.\n", idx)
 }
 
+//FrameGrabberGet returns the last fetched image with its timestamp
+func (cam *Camera) FrameGrabberGet() (*image.Image, time.Time) {
+	var img image.Image
+	cam.lastLock.Lock()
+	if cam.lastImg != nil {
+		//Duplicate img here
+		img = *cam.lastImg
+	}
+	ts := cam.lastImgTs
+	cam.lastLock.Unlock()
+
+	return &img, ts
+}
+
+//FrameGrabberStop stops the running frame grabber routine
+func (cam *Camera) FrameGrabberStop() {
+	cam.stopGrabber = true
+}
+
+//FrameGrabberStart starts frame grabber goroutine
+func (cam *Camera) FrameGrabberStart() {
+	cam.stopGrabber = false
+	for {
+		img := cam.GrabFrame()
+		if img != nil {
+			cam.lastLock.Lock()
+			cam.lastImg = img
+			cam.lastImgTs = time.Now()
+			cam.lastLock.Unlock()
+		}
+		if cam.stopGrabber == true {
+			break
+		}
+	}
+}
+
 func (cam *Camera) GrabFrameWithTimeout(timeout time.Duration) *image.Image {
 	start := time.Now()
 	for {
@@ -118,7 +160,7 @@ func (cam *Camera) GrabFrame() *image.Image {
 	}
 
 	frame, err := cam.camH.ReadFrame()
-	if len(frame) == 0 {
+	if err != nil {
 		fmt.Println(err)
 		return nil
 	}
