@@ -13,8 +13,8 @@ const (
 	rotateCalibrationMaxDelay = 10 * time.Second
 )
 
-//diffFrame returns 1.0 is same, 0.0 if different
-func diffFrame(root *image.Image, current *image.Image) float64 {
+//DiffFrame returns 1.0 is same, 0.0 if different
+func DiffFrame(root *image.Image, current *image.Image) float64 {
 
 	currentS := (*current).Bounds().Size()
 	rootS := (*root).Bounds().Size()
@@ -53,7 +53,7 @@ func (b *BrainHandler) calibrateRotationWithLevel(calibrationLevel float64) (tim
 		return 0.0, errors.New("Calibration timeout (failed to retrieve root frame)")
 	}
 
-	diff := diffFrame(rootFrame, rootFrame) //DEBUG
+	diff := DiffFrame(rootFrame, rootFrame) //DEBUG
 	if diff < 0.99999 {
 		panic("Diff between same img is not 1.0")
 	}
@@ -69,7 +69,7 @@ func (b *BrainHandler) calibrateRotationWithLevel(calibrationLevel float64) (tim
 		if curFrame == nil {
 			return 0.0, errors.New("Calibration timeout (failed to retrieve diff frame)")
 		}
-		diff := diffFrame(rootFrame, curFrame)
+		diff := DiffFrame(rootFrame, curFrame)
 
 		if diff > calibrationLevel {
 			b.mb.MoveDC(1, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
