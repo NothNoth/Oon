@@ -12,6 +12,10 @@ func main() {
 
 	fmt.Println("Starting Oon ...")
 	b := brain.New(os.Args[1], os.Args[2])
+	if b == nil {
+		fmt.Println("Brain init failed")
+		return
+	}
 	b.Start()
 	b.Destroy()
 }

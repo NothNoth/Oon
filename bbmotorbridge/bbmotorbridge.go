@@ -22,9 +22,8 @@ const (
 	i2cAddress         = 0x4B
 	i2cLane            = 2
 	gpioPin            = 49 //Motor bridge PIN maps to P9_23 which is 49
-	defaultServoSpeed  = 20
 	defaultDCFrequency = 1000
-	defaultCmdWait     = 100 * time.Millisecond
+	defaultCmdWait     = 10 * time.Millisecond
 )
 
 type ServoState struct {
@@ -36,18 +35,21 @@ type DCState struct {
 	Enabled   bool
 	Direction byte
 	Duty      uint32
+	Inverted  bool
 }
 
 //InitialState holds the JSON configuration file
 type InitialState struct {
 	//Servos holds the state for the 6 servos
+	ServoSpeed   uint16
 	ServosStates []ServoState
 	DCStates     []DCState
 }
 
 //BBMotorBridge Motor bridge handler
 type BBMotorBridge struct {
-	i2c *i2c.I2C
+	initialState InitialState
+	i2c          *i2c.I2C
 }
 
 //New creates a new MotorBridge handler, returns nil on failure
@@ -58,7 +60,7 @@ func New(config string) *BBMotorBridge {
 	//Setup GPIO / I2C
 	reset := bbhw.NewMMappedGPIO(gpioPin, bbhw.OUT)
 	reset.SetState(true)
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(defaultCmdWait)
 
 	mb.i2c, err = i2c.NewI2C(i2cAddress, i2cLane)
 	if err != nil {
@@ -83,37 +85,36 @@ func (mb *BBMotorBridge) Destroy() {
 }
 
 func (mb *BBMotorBridge) loadInitialState(config string) error {
-	var initialState InitialState
 	data, err := ioutil.ReadFile(config)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	err = json.Unmarshal(data, &initialState)
+	err = json.Unmarshal(data, &mb.initialState)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 
-	if len(initialState.ServosStates) > 6 {
+	if len(mb.initialState.ServosStates) > 6 {
 		return errors.New("Too many initial state for servos defined")
 	}
-	if len(initialState.DCStates) > 4 {
+	if len(mb.initialState.DCStates) > 4 {
 		return errors.New("Too many initial state for DC defined")
 	}
 
 	//Setup servos
-	for i := 0; i < len(initialState.ServosStates); i++ {
-		mb.EnableServo(i+1, initialState.ServosStates[i].Enabled)
-		mb.SetServo(i+1, uint16(initialState.ServosStates[i].Angle), defaultServoSpeed)
-		fmt.Printf("Servo #%d> Enabled %t - Position: %d\n", i+1, initialState.ServosStates[i].Enabled, initialState.ServosStates[i].Angle)
+	for i := 0; i < len(mb.initialState.ServosStates); i++ {
+		mb.EnableServo(i+1, mb.initialState.ServosStates[i].Enabled)
+		mb.SetServo(i+1, uint16(mb.initialState.ServosStates[i].Angle), mb.initialState.ServoSpeed)
+		fmt.Printf("Servo #%d> Enabled %t - Position: %d\n", i+1, mb.initialState.ServosStates[i].Enabled, mb.initialState.ServosStates[i].Angle)
 	}
 
 	//Setup DC
-	for i := 0; i < len(initialState.DCStates); i++ {
-		mb.EnableDC(i+1, initialState.DCStates[i].Enabled)
-		mb.MoveDC(i+1, initialState.DCStates[i].Direction, initialState.DCStates[i].Duty)
-		fmt.Printf("DC #%d> Enabled %t - Direction: %d - Duty: %d\n", i+1, initialState.DCStates[i].Enabled, initialState.DCStates[i].Direction, initialState.DCStates[i].Duty)
+	for i := 0; i < len(mb.initialState.DCStates); i++ {
+		mb.EnableDC(i+1, mb.initialState.DCStates[i].Enabled)
+		mb.MoveDC(i+1, mb.initialState.DCStates[i].Direction, mb.initialState.DCStates[i].Duty)
+		fmt.Printf("DC #%d> Enabled %t - Direction: %d - Duty: %d\n", i+1, mb.initialState.DCStates[i].Enabled, mb.initialState.DCStates[i].Direction, mb.initialState.DCStates[i].Duty)
 	}
 
 	return nil
@@ -132,6 +133,10 @@ func (mb *BBMotorBridge) EnableServo(servo int, enable bool) error {
 		err = mb.writeByte(enableReg, 0)
 	}
 	return err
+}
+
+func (mb *BBMotorBridge) DefaultServoSpeed() uint16 {
+	return mb.initialState.ServoSpeed
 }
 
 //SetServo sets the given servo index at angle with given speed.
@@ -294,6 +299,13 @@ func (mb *BBMotorBridge) MoveDC(dc int, direction byte, duty uint32) error {
 	_, directionReg, dutyReg, err := getDCRegisters(dc)
 	if err != nil {
 		return err
+	}
+	if mb.initialState.DCStates[dc-1].Inverted == true {
+		if direction == TB_CW {
+			direction = TB_CCW
+		} else if direction == TB_CCW {
+			direction = TB_CW
+		}
 	}
 
 	mb.writeByte(directionReg, direction)

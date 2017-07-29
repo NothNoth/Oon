@@ -36,11 +36,16 @@ func diffFrame(root *image.Image, current *image.Image) float64 {
 }
 
 func (b *BrainHandler) calibrateRotationWithLevel(calibrationLevel float64) (time.Duration, error) {
+	if b.cam == nil {
+		return 0.0, errors.New("Calibration failed (no camera)")
+	}
 	b.mb.MoveDC(1, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
 	b.mb.MoveDC(2, bbmotorbridge.TB_STOP, dcMotorDefaultDuty)
 
-	rootFrame := b.cam.GrabFrameWithTimeout(100 * time.Millisecond)
-
+	rootFrame := b.cam.GrabFrameWithTimeout(5 * time.Second)
+	if rootFrame == nil {
+		return 0.0, errors.New("Calibration timeout (failed to retrieve root frame)")
+	}
 	tsStart := time.Now()
 	b.mb.MoveDC(1, bbmotorbridge.TB_CW, dcMotorDefaultDuty)
 	b.mb.MoveDC(2, bbmotorbridge.TB_CCW, dcMotorDefaultDuty)
@@ -48,7 +53,10 @@ func (b *BrainHandler) calibrateRotationWithLevel(calibrationLevel float64) (tim
 	//Fetching new frame too early would lead to instant match
 	time.Sleep(500 * time.Millisecond)
 	for {
-		curFrame := b.cam.GrabFrameWithTimeout(100 * time.Millisecond)
+		curFrame := b.cam.GrabFrameWithTimeout(2 * time.Second)
+		if curFrame == nil {
+			return 0.0, errors.New("Calibration timeout (failed to retrieve diff frame)")
+		}
 		diff := diffFrame(rootFrame, curFrame)
 
 		if diff > calibrationLevel {
