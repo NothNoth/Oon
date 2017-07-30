@@ -7,6 +7,8 @@ import (
 	"image"
 	"math"
 	"time"
+
+	"github.com/x1ddos/imgdiff"
 )
 
 const (
@@ -14,7 +16,20 @@ const (
 )
 
 //DiffFrame returns 1.0 is same, 0.0 if different
+
 func DiffFrame(root *image.Image, current *image.Image) float64 {
+	d := imgdiff.NewPerceptual(2.2, 100.0, 45.0, 1.0, false)
+	_, nb, err := d.Compare(*root, *current)
+	if err != nil {
+		fmt.Println(err.Error())
+		return 1.0
+	}
+	rootS := (*root).Bounds().Size()
+	max := rootS.X * rootS.Y
+	return 1.0 - (float64(nb) / float64(max))
+}
+
+func DiffFrameX(root *image.Image, current *image.Image) float64 {
 
 	currentS := (*current).Bounds().Size()
 	rootS := (*root).Bounds().Size()

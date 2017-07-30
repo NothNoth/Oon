@@ -33,11 +33,8 @@ func regenerateImages() {
 }
 
 func TestView(t *testing.T) {
+
 	buf1, err := ioutil.ReadFile("./data/img1.jpg")
-	if err != nil {
-		panic("Test image not found")
-	}
-	buf2, err := ioutil.ReadFile("./data/img2.jpg")
 	if err != nil {
 		panic("Test image not found")
 	}
@@ -47,8 +44,22 @@ func TestView(t *testing.T) {
 		panic("Test image not found")
 	}
 
+	buf2, err := ioutil.ReadFile("./data/img2.jpg")
+	if err != nil {
+		panic("Test image not found")
+	}
 	r = bytes.NewReader(buf2)
 	img2, err := jpeg.Decode(r)
+	if err != nil {
+		panic("Test image not found")
+	}
+
+	buf3, err := ioutil.ReadFile("./data/img3.jpg")
+	if err != nil {
+		panic("Test image not found")
+	}
+	r = bytes.NewReader(buf3)
+	img3, err := jpeg.Decode(r)
 	if err != nil {
 		panic("Test image not found")
 	}
@@ -61,6 +72,12 @@ func TestView(t *testing.T) {
 	dif = brain.DiffFrame(&img1, &img2)
 	if dif < 0.75 {
 		t.Error("Close pictures are close to 1.0")
+	}
+	fmt.Printf("diff %f\n", dif)
+
+	dif = brain.DiffFrame(&img1, &img3)
+	if dif > 0.75 {
+		t.Error("Distinct images far from 1.0")
 	}
 	fmt.Printf("diff %f\n", dif)
 }
