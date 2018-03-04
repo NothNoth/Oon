@@ -107,9 +107,10 @@ func (mb *BBMotorBridge) loadInitialState(config string) error {
 	}
 
 	//Setup servos
+	mb.SetDefaultServoSpeed(mb.initialState.ServoSpeed)
 	for i := 0; i < len(mb.initialState.ServosStates); i++ {
 		mb.EnableServo(i+1, mb.initialState.ServosStates[i].Enabled)
-		mb.SetServo(i+1, uint16(mb.initialState.ServosStates[i].Angle), mb.initialState.ServoSpeed)
+		mb.SetServo(i+1, uint16(mb.initialState.ServosStates[i].Angle))
 		fmt.Printf("Servo #%d> Enabled %t - Position: %d\n", i+1, mb.initialState.ServosStates[i].Enabled, mb.initialState.ServosStates[i].Angle)
 	}
 
@@ -125,13 +126,20 @@ func (mb *BBMotorBridge) loadInitialState(config string) error {
 
 //EnableServo switches the given servo on/off. Servo identifier must be within [1-6]
 func (mb *BBMotorBridge) EnableServo(servo int, enable bool) error {
-	_, _, enableReg, err := getServoRegisters(servo)
+	speedReg, _, enableReg, err := getServoRegisters(servo)
 	if err != nil {
 		return err
 	}
 
 	if enable == true {
 		err = mb.writeByte(enableReg, 1)
+		time.Sleep(defaultCmdWait)
+
+		//Set speed
+		err = mb.writeHalfWord(speedReg, mb.DefaultServoSpeed())
+		if err != nil {
+			return err
+		}
 	} else {
 		err = mb.writeByte(enableReg, 0)
 	}
@@ -139,23 +147,20 @@ func (mb *BBMotorBridge) EnableServo(servo int, enable bool) error {
 
 	return err
 }
+func (mb *BBMotorBridge) SetDefaultServoSpeed(speed uint16) {
+	mb.initialState.ServoSpeed = speed
+}
 
 func (mb *BBMotorBridge) DefaultServoSpeed() uint16 {
 	return mb.initialState.ServoSpeed
 }
 
 //SetServo sets the given servo index at angle with given speed.
-func (mb *BBMotorBridge) SetServo(servo int, angle uint16, speed uint16) error {
-	speedReg, angleReg, _, err := getServoRegisters(servo)
+func (mb *BBMotorBridge) SetServo(servo int, angle uint16) error {
+	_, angleReg, _, err := getServoRegisters(servo)
 	if err != nil {
 		return err
 	}
-	//Set speed
-	err = mb.writeHalfWord(speedReg, speed)
-	if err != nil {
-		return err
-	}
-	time.Sleep(defaultCmdWait)
 
 	//Set angle
 	err = mb.writeHalfWord(angleReg, angle)
@@ -217,6 +222,13 @@ func (mb *BBMotorBridge) writeWord(reg byte, value uint32) error {
 	byteSeq = append(byteSeq, byte((value>>8)&0xFF))
 	byteSeq = append(byteSeq, byte((value>>16)&0xFF))
 	byteSeq = append(byteSeq, byte((value>>24)&0xFF))
+
+	fmt.Println("Write word:")
+	for _, z := range byteSeq {
+		fmt.Printf("%02x", z)
+	}
+	fmt.Println("")
+
 	_, err := mb.i2c.Write(byteSeq)
 
 	if err != nil {
@@ -233,6 +245,12 @@ func (mb *BBMotorBridge) writeHalfWord(reg byte, value uint16) error {
 	byteSeq = append(byteSeq, reg)              //Which register ?
 	byteSeq = append(byteSeq, byte(value&0xFF)) //16 bits value
 	byteSeq = append(byteSeq, byte((value>>8)&0xFF))
+
+	fmt.Println("Write halfword:")
+	for _, z := range byteSeq {
+		fmt.Printf("%02x", z)
+	}
+	fmt.Println("")
 	_, err := mb.i2c.Write(byteSeq)
 
 	if err != nil {
@@ -248,6 +266,11 @@ func (mb *BBMotorBridge) writeByte(reg byte, value byte) error {
 	byteSeq = append(byteSeq, WRITE_MODE) // Read/Write ?
 	byteSeq = append(byteSeq, reg)        //Which register ?
 	byteSeq = append(byteSeq, value)      //8 bits value
+	fmt.Println("Write byte:")
+	for _, z := range byteSeq {
+		fmt.Printf("%02x", z)
+	}
+	fmt.Println("")
 	_, err := mb.i2c.Write(byteSeq)
 
 	if err != nil {

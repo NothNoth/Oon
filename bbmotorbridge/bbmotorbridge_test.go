@@ -58,6 +58,11 @@ func TestServos(t *testing.T) {
 			t.Errorf("Servo %d can be enabled", i)
 		}
 
+		err = mb.SetServo(i, 130, 10)
+		if err != nil {
+			t.Errorf("Set position for valid servo (%d) is accepted", i)
+		}
+		time.Sleep(1 * time.Second)
 		err = mb.SetServo(i, 30, 10)
 		if err != nil {
 			t.Errorf("Set position for valid servo (%d) is accepted", i)
