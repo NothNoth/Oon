@@ -57,6 +57,9 @@ func New(config string) *BBMotorBridge {
 	var mb BBMotorBridge
 	var err error
 
+	mb.initialState.DCStates = make([]DCState, 4)
+	mb.initialState.ServosStates = make([]ServoState, 6)
+
 	//Setup GPIO / I2C
 	reset := bbhw.NewMMappedGPIO(gpioPin, bbhw.OUT)
 	reset.SetState(true)
@@ -132,6 +135,8 @@ func (mb *BBMotorBridge) EnableServo(servo int, enable bool) error {
 	} else {
 		err = mb.writeByte(enableReg, 0)
 	}
+	time.Sleep(defaultCmdWait)
+
 	return err
 }
 
@@ -150,11 +155,15 @@ func (mb *BBMotorBridge) SetServo(servo int, angle uint16, speed uint16) error {
 	if err != nil {
 		return err
 	}
+	time.Sleep(defaultCmdWait)
+
 	//Set angle
 	err = mb.writeHalfWord(angleReg, angle)
 	if err != nil {
 		return err
 	}
+	time.Sleep(defaultCmdWait)
+
 	return nil
 }
 

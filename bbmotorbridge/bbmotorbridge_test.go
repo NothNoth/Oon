@@ -2,7 +2,9 @@ package bbmotorbridge_test
 
 import (
 	"Oon/bbmotorbridge"
+	"fmt"
 	"testing"
+	"time"
 )
 
 func TestInit(t *testing.T) {
@@ -18,8 +20,9 @@ func TestInit(t *testing.T) {
 	}
 
 	mb = bbmotorbridge.New("example.conf")
-	if mb != nil {
+	if mb == nil {
 		t.Error("Valid config file is accepted")
+		return
 	}
 	mb.Destroy()
 
@@ -48,6 +51,23 @@ func TestServos(t *testing.T) {
 	if err != nil {
 		t.Error("Set position for valid servo is accepted")
 	}
+
+	for i := 1; i <= 6; i++ {
+		err := mb.EnableServo(i, true)
+		if err != nil {
+			t.Errorf("Servo %d can be enabled", i)
+		}
+
+		err = mb.SetServo(i, 30, 10)
+		if err != nil {
+			t.Errorf("Set position for valid servo (%d) is accepted", i)
+		}
+
+		err = mb.EnableServo(i, false)
+		if err != nil {
+			t.Errorf("Servo %d can be disabled", i)
+		}
+	}
 	mb.Destroy()
 
 }
@@ -55,18 +75,29 @@ func TestServos(t *testing.T) {
 func TestDC(t *testing.T) {
 	mb := bbmotorbridge.New("")
 	err := mb.EnableDC(12, true)
-	if err != nil {
+	if err == nil {
 		t.Error("Invalid DC motor is rejected")
 	}
 
-	err = mb.EnableDC(1, true)
-	if err != nil {
-		t.Error("Valid DC motor can be enabled")
-	}
-
-	err = mb.MoveDC(1, 1, 50)
-	if err != nil {
-		t.Error("Valid motor can move")
+	for i := 1; i <= 4; i++ {
+		fmt.Printf("Testing DC #%d\n", i)
+		err = mb.EnableDC(i, true)
+		if err != nil {
+			t.Error("Valid DC motor can be enabled")
+		}
+		err = mb.MoveDC(i, 1, 50)
+		if err != nil {
+			t.Error("Valid motor can move")
+		}
+		time.Sleep(1 * time.Second)
+		err = mb.StopDC(i)
+		if err != nil {
+			t.Error("Valid motor can be stopped")
+		}
+		err = mb.EnableDC(i, false)
+		if err != nil {
+			t.Error("Valid DC motor can be disabled")
+		}
 	}
 
 	mb.Destroy()

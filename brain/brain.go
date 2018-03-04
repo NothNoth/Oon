@@ -33,12 +33,13 @@ type BrainHandler struct {
 func New(motorBridgeConfig string, cameraConfig string) *BrainHandler {
 	var b BrainHandler
 	b.currentState = stateIdle
-
+	fmt.Println("Setting up brain...")
 	b.mb = bbmotorbridge.New(motorBridgeConfig)
 	if b.mb == nil {
 		fmt.Println("Failed to init motor bridge")
 		return nil
 	}
+	fmt.Println("> Motors ready.")
 
 	b.ctrl = controls.New()
 	if b.ctrl == nil {
@@ -46,12 +47,14 @@ func New(motorBridgeConfig string, cameraConfig string) *BrainHandler {
 		fmt.Println("Failed to init controls")
 		return nil
 	}
+	fmt.Println("> Controls ready.")
 
 	b.cam = camera.New(cameraConfig)
 	if b.cam == nil {
 		fmt.Println("Failed to init camera")
 		return nil
 	}
+	fmt.Println("> Camera ready.")
 
 	return &b
 }
@@ -68,6 +71,8 @@ func (b *BrainHandler) delayedStateSwitch(newState int, wait time.Duration) {
 
 func (b *BrainHandler) Start() {
 	var err error
+
+	fmt.Println("Calibrating rotation...")
 	b.rotationSpeed, err = b.calibrateRotation()
 	if err != nil {
 		fmt.Printf("Rotation calibration failed: %s, using default\n", err.Error())
