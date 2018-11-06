@@ -229,7 +229,7 @@ func (mb *BBMotorBridge) writeWord(reg byte, value uint32) error {
 	}
 	fmt.Println("")
 
-	_, err := mb.i2c.Write(byteSeq)
+	_, err := mb.i2c.WriteBytes(byteSeq)
 
 	if err != nil {
 		fmt.Printf("Write failed: %s\n", err.Error())
@@ -251,7 +251,7 @@ func (mb *BBMotorBridge) writeHalfWord(reg byte, value uint16) error {
 		fmt.Printf("%02x", z)
 	}
 	fmt.Println("")
-	_, err := mb.i2c.Write(byteSeq)
+	_, err := mb.i2c.WriteBytes(byteSeq)
 
 	if err != nil {
 		fmt.Printf("Write failed: %s\n", err.Error())
@@ -271,7 +271,7 @@ func (mb *BBMotorBridge) writeByte(reg byte, value byte) error {
 		fmt.Printf("%02x", z)
 	}
 	fmt.Println("")
-	_, err := mb.i2c.Write(byteSeq)
+	_, err := mb.i2c.WriteBytes(byteSeq)
 
 	if err != nil {
 		fmt.Printf("Write failed: %s\n", err.Error())
