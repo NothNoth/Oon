@@ -23,6 +23,8 @@ type OonConfig struct {
 	RmqServer     string
 	MotorsSpeed   int
 	WheelDiameter uint32
+	Button1Name   string
+	Button2Name   string
 }
 
 type Oon struct {
@@ -165,11 +167,11 @@ func (oon *Oon) ReceiveGPIOButton() error {
 	if err != nil {
 		return err
 	}
-
+	button1ContentType := fmt.Sprintf("application/button_press_%s", oon.config.Button1Name)
 	go func() {
 		for d := range msgs {
 			switch d.ContentType {
-			case "application/button_press":
+			case button1ContentType:
 				oon.SetSpeed(30)
 				oon.MoveForwardDistance(1000)
 				time.Sleep(10 * time.Second)
@@ -225,11 +227,6 @@ func (oon *Oon) Think() error {
 		}
 	}
 	return nil
-}
-
-func (oon *Oon) millimetersToTicks(distMm uint32) uint32 {
-
-	return distMm * oon.motorsTicksPerRotation / oon.config.WheelDiameter
 }
 
 func main() {

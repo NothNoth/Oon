@@ -59,6 +59,9 @@ func (oon *Oon) MoveForward() {
 func (oon *Oon) MoveForwardDistance(distMm uint32) {
 
 	requiredTicks := oon.millimetersToTicks(distMm)
+	if requiredTicks == 0 {
+		return
+	}
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint32(buf[0:], uint32(3))
 	binary.BigEndian.PutUint32(buf[4:], uint32(requiredTicks))
@@ -96,6 +99,9 @@ func (oon *Oon) MoveForwardDistance(distMm uint32) {
 func (oon *Oon) MoveBackwardDistance(distMm uint32) {
 
 	requiredTicks := oon.millimetersToTicks(distMm)
+	if requiredTicks == 0 {
+		return
+	}
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint32(buf[0:4], uint32(3))
 	binary.BigEndian.PutUint32(buf[4:8], uint32(requiredTicks))
@@ -134,6 +140,9 @@ func (oon *Oon) MoveBackwardDistance(distMm uint32) {
 func (oon *Oon) TurnBack() {
 	//One full rotation on each wheel means 180°
 	requiredTicks := oon.millimetersToTicks(oon.config.WheelDiameter)
+	if requiredTicks == 0 {
+		return
+	}
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint32(buf[0:4], uint32(3))
 	binary.BigEndian.PutUint32(buf[4:8], uint32(requiredTicks))
@@ -199,4 +208,14 @@ func (oon *Oon) MoveStop() {
 	if err != nil {
 		log.Println("Failed to stop motor 4")
 	}
+}
+
+func (oon *Oon) millimetersToTicks(distMm uint32) uint32 {
+
+	if oon.motorsTicksPerRotation == 0 {
+		log.Println("Didn't received motorsTicksPerRotation yet")
+		return 0
+	}
+
+	return distMm * oon.motorsTicksPerRotation / oon.config.WheelDiameter
 }
