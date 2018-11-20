@@ -1,0 +1,20 @@
+[Unit]
+Description=Oon Camera 
+#After=rabbitmq-server.service
+ 
+[Service]
+Type=simple
+ 
+User=%i
+ 
+ExecStart=/root/Oon/cameramq /root/Oon/camera.conf
+ExecStop=/usr/bin/killall -2 cameramq
+Restart=on-failure
+RestartSec=10
+WorkingDirectory=/root/Oon
+ 
+# Configures the time to wait before service is stopped forcefully.
+TimeoutStopSec=30
+ 
+[Install]
+WantedBy=multi-user.target
